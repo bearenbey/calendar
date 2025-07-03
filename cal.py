@@ -45,45 +45,124 @@ def prompt_note_index(stdscr, notes_list):
 def draw_calendar(stdscr, year, month, selected_day, notes):
     stdscr.clear()
     curses.curs_set(0)
+    height, width = stdscr.getmaxyx()
     today = datetime.now().date()
     cal = calendar.monthcalendar(year, month)
     month_name = calendar.month_name[month]
 
-    stdscr.addstr(0, 0, f"{month_name} {year}".center(28), curses.A_BOLD)
-    days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-    for i, day in enumerate(days):
-        stdscr.addstr(2, i * 4, day, curses.A_UNDERLINE)
+    # Calculate column widths: calendar takes 40% of the screen, tasks take the rest
+    calendar_width = min(40, width // 2)  # Ensure calendar width is reasonable
+    tasks_width = max(10, width - calendar_width - 2)  # Leave a small gap, ensure minimum width
 
-    for row_idx, week in enumerate(cal):
-        for col_idx, day in enumerate(week):
-            if day == 0:
-                continue
-            y, x = 3 + row_idx, col_idx * 4
-            attr = curses.A_NORMAL
-            date_obj = datetime(year, month, day).date()
-            if date_obj == today:
-                attr = curses.A_REVERSE
-            if day == selected_day:
-                attr |= curses.A_STANDOUT
-            stdscr.addstr(y, x, f"{day:2}", attr)
+    # Draw calendar in the left column
+    if height > 0 and width > 0:  # Ensure there's space to draw
+        stdscr.addstr(0, 0, f"{month_name} {year}".center(calendar_width), curses.A_BOLD)
 
-    selected_date = get_date_string(year, month, selected_day)
-    stdscr.addstr(10, 0, f"Selected: {selected_date}", curses.A_BOLD)
+        days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+        for i, day in enumerate(days):
+            if i * 4 + 2 <= calendar_width and 2 < height:  # Ensure day labels fit within calendar width and screen height
+                stdscr.addstr(2, i * 4, day, curses.A_UNDERLINE)
 
-    # Show notes
-    row = 12
-    if selected_date in notes and notes[selected_date]:
-        stdscr.addstr(row, 0, "Notes:")
-        for idx, note in enumerate(notes[selected_date]):
-            wrapped = textwrap.wrap(note, 50)
-            stdscr.addstr(row + 1, 2, f"{idx + 1}. {wrapped[0]}")
-            for i, w in enumerate(wrapped[1:], 1):
-                stdscr.addstr(row + 1 + i, 6, w)
-            row += len(wrapped) + 1
-    else:
-        stdscr.addstr(row, 0, "No notes for this date.")
+        for row_idx, week in enumerate(cal):
+            if 3 + row_idx >= height:  # Stop if we reach the bottom of the screen
+                break
+            for col_idx, day in enumerate(week):
+                if day == 0:
+                    continue
+                y, x = 3 + row_idx, col_idx * 4
+                attr = curses.A_NORMAL
+                date_obj = datetime(year, month, day).date()
+                if date_obj == today:
+                    attr = curses.A_REVERSE
+                if day == selected_day:
+                    attr |= curses.A_STANDOUT
+                if x < calendar_width and y < height:  # Ensure we don't draw outside the calendar column or screen
+                    stdscr.addstr(y, x, f"{day:2}", attr)
 
-    stdscr.addstr(curses.LINES - 1, 0, "←↑→↓: Move  a: Add  m: Modify  d: Delete  q: Quit")
+        selected_date = get_date_string(year, month, selected_day)
+        if 10 < height and calendar_width > len(f"Selected: {selected_date}"):
+            stdscr.addstr(10, 0, f"Selected: {selected_date}", curses.A_BOLD)
+
+        # Show notes for the selected date
+        row = 12
+        if row < height and selected_date in notes and notes[selected_date]:
+            stdscr.addstr(row, 0, "Notes:")
+            for idx, note in enumerate(notes[selected_date]):
+                if row + 1 >= height:  # Check if there's space for the note
+                    break
+                wrapped = textwrap.wrap(note, calendar_width - 2)
+                if wrapped:
+                    note_line = f"{idx + 1}. {wrapped[0][:calendar_width - 6]}"
+                    if len(note_line) <= calendar_width:
+                        stdscr.addstr(row + 1, 2, note_line)
+                    else:
+                        stdscr.addstr(row + 1, 2, note_line[:calendar_width - 2])
+                    for i, w in enumerate(wrapped[1:], 1):
+                        if row + 1 + i >= height - 1:  # Ensure we don't draw outside the screen
+                            break
+                        line = w[:calendar_width - 6]
+                        stdscr.addstr(row + 1 + i, 6, line)
+                    row += len(wrapped) + 1
+        elif row < height:
+            stdscr.addstr(row, 0, "No notes for this date.")
+
+        # Draw upcoming tasks in the right column
+        if tasks_width > 10:  # Only display if there's enough width
+            upcoming_tasks = []
+            for date_str in sorted(notes.keys()):
+                try:
+                    date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    if date_obj >= today:
+                        for note in notes[date_str]:
+                            upcoming_tasks.append((date_obj, note))
+                except ValueError:
+                    continue
+
+            # Sort upcoming tasks by date
+            upcoming_tasks.sort(key=lambda x: x[0])
+
+            # Display upcoming tasks header
+            if 0 < height and calendar_width + 2 < width:
+                tasks_header = "Upcoming Tasks"
+                stdscr.addstr(0, calendar_width + 2, tasks_header.center(tasks_width), curses.A_BOLD)
+
+            # Display upcoming tasks
+            row = 1
+            for date_obj, note in upcoming_tasks:
+                if row >= height - 2:  # Stop if we reach near the bottom of the screen
+                    break
+                date_str = date_obj.strftime("%Y-%m-%d")
+                wrapped = textwrap.wrap(note, tasks_width - len(date_str) - 3)  # Leave space for date and ": "
+                if wrapped:
+                    line = f"{date_str}: {wrapped[0]}"
+                    if calendar_width + 2 + len(line) <= width and row < height:
+                        stdscr.addstr(row, calendar_width + 2, line)
+                    for i, w in enumerate(wrapped[1:], 1):
+                        if row + i >= height - 1:  # Ensure we don't draw outside the screen
+                            break
+                        line = " " * (len(date_str) + 2) + w
+                        if calendar_width + 2 + len(line) <= width:
+                            stdscr.addstr(row + i, calendar_width + 2, line)
+                    row += len(wrapped) + 1  # Add spacing between tasks
+
+    # Draw footer at the bottom of the screen spanning both columns
+    footer = "←↑→↓: Move  a: Add  m: Modify  d: Delete  q: Quit"
+    if height > 0 and width > 0:
+        # Ensure the footer fits within the screen width
+        if width >= len(footer):
+            footer_str = footer.ljust(width)
+        else:
+            footer_str = footer[:width]
+        # Ensure we don't write to the last line if it's beyond screen height
+        if height > 0:  # Ensure there's at least one row
+            footer_row = height - 1
+            if footer_row >= 0 and footer_row < height:
+                try:
+                    stdscr.addstr(footer_row, 0, footer_str, curses.A_REVERSE)
+                except curses.error:
+                    # Handle cases where even after checks, there might be an issue
+                    pass
+
     stdscr.refresh()
 
 def calendar_app(stdscr):
@@ -91,12 +170,10 @@ def calendar_app(stdscr):
     now = datetime.now()
     year, month = now.year, now.month
     selected_day = now.day
-
     while True:
         draw_calendar(stdscr, year, month, selected_day, notes)
         key = stdscr.getch()
         max_day = calendar.monthrange(year, month)[1]
-
         if key == curses.KEY_RIGHT and selected_day < max_day:
             selected_day += 1
         elif key == curses.KEY_LEFT and selected_day > 1:
