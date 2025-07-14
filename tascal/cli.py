@@ -11,7 +11,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
-# © 2025 Eren Ogrul - iam.bearen@pm.me
+# © 2025 Eren Öğrül - termapp@pm.me
 
 import curses
 import calendar
@@ -227,5 +227,6 @@ def calendar_app(stdscr):
         elif key == ord('q'):
             break
 
-if __name__ == "__main__":
+def run():
+    import curses
     curses.wrapper(calendar_app)

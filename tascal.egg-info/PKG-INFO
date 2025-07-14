@@ -1,3 +1,24 @@
+Metadata-Version: 2.4
+Name: tascal
+Version: 0.1.0
+Summary: A terminal-based calendar note-taking app.
+Author: Eren Öğrül
+Author-email: termapp@pm.me
+Classifier: Programming Language :: Python :: 3
+Classifier: Environment :: Console
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Natural Language :: English
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: requires-python
+Dynamic: summary
+
 # A Terminal Calendar Task App: TasCal
 
 A lightweight terminal-based calendar app for writing and managing date-specific notes — powered by Python's `curses` module.
