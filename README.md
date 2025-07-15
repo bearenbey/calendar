@@ -51,21 +51,21 @@ Use it in your terminal. On your laptop. On your server. On your Raspberry Pi.
 
 ## Installation
 
-### 1. Pip
+Install via pip:
 
 ```bash
 pip install tascal
 ```
 
-### 2. (Optional) GitHub Repo 
+Then run the app:
 
 ```bash
-git clone https://github.com/bearenbey/tascal.git
-cd tascal/tascal
-python3 cli.py
+tascal
+```
 
-# or
+To install from source:
 
+```bash
 git clone https://github.com/bearenbey/tascal.git
 cd tascal
 pip install .
